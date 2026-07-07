@@ -8,12 +8,8 @@
 # ==============================================================================
 if [[ "${1:-}" == "--update" || "${1:-}" == "--upgrade" ]]; then
     echo -e "\e[36m[*] Fetching the latest script from GitHub (dev branch)...\e[0m"
-    
     TMP_FILE=$(mktemp)
-    
-    # [DEBUG] Security Audit: Ensure the temporary payload is wiped from memory even if the user sends SIGINT (Ctrl+C).
     trap 'rm -f "$TMP_FILE"' EXIT
-    
     SCRIPT_URL="https://raw.githubusercontent.com/chihafuyu/Chihafuyu-Tool-Termux/dev/chihafuyu-tool.sh"
     
     if curl -sL "$SCRIPT_URL" -o "$TMP_FILE"; then
@@ -34,7 +30,47 @@ if [[ "${1:-}" == "--update" || "${1:-}" == "--upgrade" ]]; then
 fi
 
 # ==============================================================================
-# INTERNET CONNECTION CHECK
+# RECOMMENDED APP VERSIONS ARRAYS
+# ==============================================================================
+# Morphe
+cfg_youtube_stable=("20.51.39" "20.47.62" "20.31.42" "20.21.37")
+cfg_youtube_music_stable=("9.15.51" "8.51.51" "7.29.52")
+cfg_reddit_stable=("2026.14.0" "2026.04.0")
+
+# Piko
+cfg_x_stable=("12.2.0-release.0" "12.0.0-release.0" "11.99.0-release-ripped.1" "11.81.0-release.0" "11.69.0-release.0")
+cfg_ig_stable=("435.0.0.37.76")
+
+# hoo-dles
+cfg_adguard_stable=("4.12.81")
+cfg_ibispaint_stable=("14.0.4")
+cfg_wps_stable=("18.24")
+cfg_camscanner_stable=("7.20.0.2606230000")
+cfg_sleep_stable=("20260526")
+cfg_duolingo_stable=("6.85.7")
+cfg_merriamwebster_stable=("Any")
+cfg_mimo_stable=("9.11")
+cfg_windy_stable=("50.1.1")
+cfg_xrecorder_stable=("2.5.1.1")
+cfg_xodo_stable=("10.15.0")
+
+# De-ReVanced
+cfg_photos_stable=("Any")
+cfg_rar_stable=("Any")
+
+# BholeyKaBhakt
+cfg_speedtest_stable=("7.0.4")
+cfg_stellarium_stable=("1.16.3" "1.16.2")
+cfg_proto_stable=("1.49.0" "1.48.0")
+cfg_vpnify_stable=("2.2.9")
+cfg_backdrops_stable=("6.1.2")
+cfg_solidexplorer_stable=("3.4.10")
+
+# browzomje
+cfg_pinterest_stable=("14.23.0" "14.24.0")
+
+# ==============================================================================
+# SYSTEM PREREQUISITES
 # ==============================================================================
 if ! ping -c 1 www.google.com &> /dev/null; then
     echo -e "\e[31m[!] No internet connection detected.\e[0m"
@@ -44,8 +80,7 @@ fi
 echo -e "\e[36m[SYSTEM] Checking Termux environment prerequisites...\e[0m"
 export DEBIAN_FRONTEND=noninteractive
 
-# [DEBUG] Auto-Healing: Safely terminate hanging package managers and release lock files. 
-# Soft SIGTERM (-f) is used instead of SIGKILL (-9) to prevent dpkg database corruption.
+# Auto-Healing
 pkill -f "apt" > /dev/null 2>&1 || true
 pkill -f "apt-get" > /dev/null 2>&1 || true
 pkill -f "dpkg" > /dev/null 2>&1 || true
@@ -56,7 +91,6 @@ rm -f "$PREFIX/var/lib/apt/lists/lock" > /dev/null 2>&1
 dpkg --configure -a > /dev/null 2>&1
 apt-get --fix-broken install -y -q > /dev/null 2>&1
 
-# Resolve core dependencies
 if ! command -v jq &> /dev/null || ! command -v curl &> /dev/null || ! command -v whiptail &> /dev/null || ! command -v tput &> /dev/null; then 
     echo -e "\e[90m  [i] Updating and installing core packages...\e[0m"
     apt-get update -y -q > /dev/null 2>&1
@@ -65,7 +99,6 @@ if ! command -v jq &> /dev/null || ! command -v curl &> /dev/null || ! command -
     echo -e "\e[32m  [✓] Essential packages installed.\e[0m"
 fi 
 
-# Verify JVM environment (JDK 21)
 java_ver=""
 if command -v java &> /dev/null; then
     java_ver=$(java -version 2>&1 | grep -oP '"(?:1\.)?\K(\d+)' | head -n 1)
@@ -77,7 +110,6 @@ if [ -z "$java_ver" ] || [ "$java_ver" -lt 21 ]; then
     apt-get install -y openjdk-21 < /dev/null
 fi
 
-# Create Global Executable Shortcut
 BIN_PATH="$PREFIX/bin/chihafuyu"
 if [ ! -f "$BIN_PATH" ]; then
     cat << 'EOF' > "$BIN_PATH"
@@ -90,11 +122,9 @@ EOF
 fi
 
 # ==============================================================================
-# UI DIMENSION CALCULATOR (HARDWARE-ACCURATE)
+# UI DIMENSION CALCULATOR
 # ==============================================================================
 calc_size() {
-    # [DEBUG] checkwinsize commands bash to re-evaluate LINES and COLUMNS dynamically.
-    # Crucial for mobile environments where screen orientation changes mid-execution.
     shopt -s checkwinsize
     local size=$(stty size 2>/dev/null || echo "24 80")
     local term_h=$(echo $size | awk '{print $1}')
@@ -110,15 +140,11 @@ calc_size() {
     if [ "$WT_M" -lt 2 ]; then WT_M=2; fi 
 }
 
-# Initialize isolated workspace in public internal storage
 calc_size
 if [ ! -d "$HOME/storage/downloads" ]; then
     whiptail --title "Storage Permission" --msgbox "Termux requires storage permission to save files in your Downloads folder.\n\nPlease tap 'Allow' on the upcoming popup." $WT_H $WT_W
     termux-setup-storage
     sleep 3
-    
-    # [DEBUG] Security Audit: Abort execution if the user refuses to grant storage permissions.
-    # Scoped Storage on Android 11+ prevents falling back to unapproved directories.
     if [ ! -d "$HOME/storage/downloads" ]; then
         echo -e "\e[31m[!] Storage access not granted. Operations cannot continue. Exiting.\e[0m"
         exit 1
@@ -127,8 +153,6 @@ fi
 
 BASE_DIR="$HOME/storage/downloads/Chihafuyu"
 mkdir -p "$BASE_DIR/CLI"
-
-# Global fetcher state
 FETCHED_FILE=""
 
 fetch_github_artifact() {
@@ -160,7 +184,6 @@ fetch_github_artifact() {
     if [ "$track" == "stable" ]; then
         local latest_response=$(curl -s "$api_url/latest")
         local latest_type=$(echo "$latest_response" | jq -r 'type')
-        
         if [ "$latest_type" == "object" ]; then
             local check_latest_err=$(echo "$latest_response" | jq -r '.message // empty')
             if [ -n "$check_latest_err" ]; then
@@ -214,7 +237,6 @@ fetch_gitlab_artifact() {
 
     local api_url="https://gitlab.com/api/v4/projects/$project_id/releases"
     local api_response=$(curl -s "$api_url")
-
     local download_url=$(echo "$api_response" | jq -r ".[0].assets.links[] | select(.name | endswith(\"$file_ext\")) | .url" | head -n 1)
     local file_name=$(echo "$api_response" | jq -r ".[0].assets.links[] | select(.name | endswith(\"$file_ext\")) | .name" | head -n 1)
 
@@ -264,54 +286,84 @@ invoke_patching() {
     local ecoChoice=$(whiptail --title "Target Ecosystem" --menu "Select Ecosystem(s):" $WT_H $WT_W $WT_M \
         "1" "Morphe (YouTube, YT Music, Reddit)" \
         "2" "Piko (X/Twitter, Instagram)" \
-        "3" "hoo-dles (AdGuard, IbisPaint X, CamScanner, etc.)" \
+        "3" "hoo-dles (AdGuard, IbisPaint X, WPS, etc.)" \
         "4" "De-ReVanced (Google Photos, RAR)" \
-        "5" "BholeyKaBhakt (Speedtest, Stellarium, PROTO, etc.)" \
+        "5" "BholeyKaBhakt (Speedtest, Stellarium, etc.)" \
         "6" "browzomje (Pinterest)" 3>&1 1>&2 2>&3)
     if [ -z "$ecoChoice" ]; then return; fi
 
-    declare -A pkg_map name_map keyword_map
+    declare -A pkg_map name_map keyword_map array_map
     local app_menu=()
 
+    # Dynamic Array Mapping
     case "$ecoChoice" in
         1) 
             project_name="Morphe"; patch_repo="MorpheApp/morphe-patches"
-            app_menu=("youtube" "YouTube (Rec: 20.51.39)" ON "ytmusic" "YT Music (Rec: 9.15.51)" OFF "reddit" "Reddit (Rec: 2026.14.0)" OFF)
-            pkg_map["youtube"]="com.google.android.youtube"; name_map["youtube"]="YouTube"; keyword_map["youtube"]="youtube"
-            pkg_map["ytmusic"]="com.google.android.apps.youtube.music"; name_map["ytmusic"]="YT_Music"; keyword_map["ytmusic"]="music"
-            pkg_map["reddit"]="com.reddit.frontpage"; name_map["reddit"]="Reddit"; keyword_map["reddit"]="reddit"
+            app_menu=("youtube" "YouTube (Rec: ${cfg_youtube_stable[0]})" ON "ytmusic" "YT Music (Rec: ${cfg_youtube_music_stable[0]})" OFF "reddit" "Reddit (Rec: ${cfg_reddit_stable[0]})" OFF)
+            pkg_map["youtube"]="com.google.android.youtube"; name_map["youtube"]="YouTube"; keyword_map["youtube"]="youtube"; array_map["youtube"]="cfg_youtube_stable"
+            pkg_map["ytmusic"]="com.google.android.apps.youtube.music"; name_map["ytmusic"]="YT_Music"; keyword_map["ytmusic"]="music"; array_map["ytmusic"]="cfg_youtube_music_stable"
+            pkg_map["reddit"]="com.reddit.frontpage"; name_map["reddit"]="Reddit"; keyword_map["reddit"]="reddit"; array_map["reddit"]="cfg_reddit_stable"
             ;;
         2) 
             project_name="Piko"; patch_repo="crimera/piko"
-            app_menu=("twitter" "X/Twitter (Rec: 12.2.0)" ON "instagram" "Instagram (Rec: 435.0.0.37.76)" OFF)
-            pkg_map["twitter"]="com.twitter.android"; name_map["twitter"]="X_Twitter"; keyword_map["twitter"]="twitter\|x"
-            pkg_map["instagram"]="com.instagram.android"; name_map["instagram"]="Instagram"; keyword_map["instagram"]="instagram\|ig"
+            app_menu=("twitter" "X/Twitter (Rec: ${cfg_x_stable[0]})" ON "instagram" "Instagram (Rec: ${cfg_ig_stable[0]})" OFF)
+            pkg_map["twitter"]="com.twitter.android"; name_map["twitter"]="X_Twitter"; keyword_map["twitter"]="twitter\|x"; array_map["twitter"]="cfg_x_stable"
+            pkg_map["instagram"]="com.instagram.android"; name_map["instagram"]="Instagram"; keyword_map["instagram"]="instagram\|ig"; array_map["instagram"]="cfg_ig_stable"
             ;;
         3) 
             project_name="hoo-dles"; patch_repo="hoo-dles/morphe-patches"
-            app_menu=("adguard" "AdGuard (Rec: 4.12.81)" ON "ibispaint" "IbisPaint X (Rec: 14.0.4)" OFF "wps" "WPS Office (Rec: 18.24)" OFF "camscanner" "CamScanner (Rec: 7.15.5)" OFF)
-            pkg_map["adguard"]="com.adguard.android"; name_map["adguard"]="AdGuard"; keyword_map["adguard"]="adguard"
-            pkg_map["ibispaint"]="jp.ne.ibis.ibispaintx.app"; name_map["ibispaint"]="IbisPaint_X"; keyword_map["ibispaint"]="ibis"
-            pkg_map["wps"]="cn.wps.moffice_eng"; name_map["wps"]="WPS_Office"; keyword_map["wps"]="wps"
-            pkg_map["camscanner"]="com.intsig.camscanner"; name_map["camscanner"]="CamScanner"; keyword_map["camscanner"]="camscanner"
+            app_menu=(
+                "adguard" "AdGuard (Rec: ${cfg_adguard_stable[0]})" ON 
+                "ibispaint" "IbisPaint X (Rec: ${cfg_ibispaint_stable[0]})" OFF 
+                "wps" "WPS Office (Rec: ${cfg_wps_stable[0]})" OFF 
+                "camscanner" "CamScanner (Rec: ${cfg_camscanner_stable[0]})" OFF
+                "sleep" "Sleep as Android (Rec: ${cfg_sleep_stable[0]})" OFF
+                "duolingo" "Duolingo (Rec: ${cfg_duolingo_stable[0]})" OFF
+                "merriam" "Merriam-Webster (Rec: Any)" OFF
+                "mimo" "Mimo (Rec: ${cfg_mimo_stable[0]})" OFF
+                "windy" "Windy (Rec: ${cfg_windy_stable[0]})" OFF
+                "xrecorder" "XRecorder (Rec: ${cfg_xrecorder_stable[0]})" OFF
+                "xodo" "Xodo (Rec: ${cfg_xodo_stable[0]})" OFF
+            )
+            pkg_map["adguard"]="com.adguard.android"; name_map["adguard"]="AdGuard"; keyword_map["adguard"]="adguard"; array_map["adguard"]="cfg_adguard_stable"
+            pkg_map["ibispaint"]="jp.ne.ibis.ibispaintx.app"; name_map["ibispaint"]="IbisPaint_X"; keyword_map["ibispaint"]="ibis"; array_map["ibispaint"]="cfg_ibispaint_stable"
+            pkg_map["wps"]="cn.wps.moffice_eng"; name_map["wps"]="WPS_Office"; keyword_map["wps"]="wps"; array_map["wps"]="cfg_wps_stable"
+            pkg_map["camscanner"]="com.intsig.camscanner"; name_map["camscanner"]="CamScanner"; keyword_map["camscanner"]="camscanner"; array_map["camscanner"]="cfg_camscanner_stable"
+            pkg_map["sleep"]="com.urbandroid.sleep"; name_map["sleep"]="Sleep_as_Android"; keyword_map["sleep"]="sleep\|urbandroid"; array_map["sleep"]="cfg_sleep_stable"
+            pkg_map["duolingo"]="com.duolingo"; name_map["duolingo"]="Duolingo"; keyword_map["duolingo"]="duolingo"; array_map["duolingo"]="cfg_duolingo_stable"
+            pkg_map["merriam"]="com.merriamwebster"; name_map["merriam"]="Merriam_Webster"; keyword_map["merriam"]="merriam\|webster"; array_map["merriam"]="cfg_merriamwebster_stable"
+            pkg_map["mimo"]="com.getmimo"; name_map["mimo"]="Mimo"; keyword_map["mimo"]="mimo"; array_map["mimo"]="cfg_mimo_stable"
+            pkg_map["windy"]="com.windyty.android"; name_map["windy"]="Windy"; keyword_map["windy"]="windy"; array_map["windy"]="cfg_windy_stable"
+            pkg_map["xrecorder"]="videoeditor.videorecorder.screenrecorder"; name_map["xrecorder"]="XRecorder"; keyword_map["xrecorder"]="xrecorder\|screenrecorder"; array_map["xrecorder"]="cfg_xrecorder_stable"
+            pkg_map["xodo"]="com.xodo.pdf.reader"; name_map["xodo"]="Xodo"; keyword_map["xodo"]="xodo"; array_map["xodo"]="cfg_xodo_stable"
             ;;
         4) 
             project_name="De-ReVanced"; patch_repo="RookieEnough/De-Vanced"
-            app_menu=("photos" "Google Photos (Any)" ON "rar" "RAR (Any)" OFF)
-            pkg_map["photos"]="com.google.android.apps.photos"; name_map["photos"]="Google_Photos"; keyword_map["photos"]="photos"
-            pkg_map["rar"]="com.rarlab.rar"; name_map["rar"]="RAR"; keyword_map["rar"]="rar"
+            app_menu=("photos" "Google Photos (Rec: Any)" ON "rar" "RAR (Rec: Any)" OFF)
+            pkg_map["photos"]="com.google.android.apps.photos"; name_map["photos"]="Google_Photos"; keyword_map["photos"]="photos"; array_map["photos"]="cfg_photos_stable"
+            pkg_map["rar"]="com.rarlab.rar"; name_map["rar"]="RAR"; keyword_map["rar"]="rar"; array_map["rar"]="cfg_rar_stable"
             ;;
         5) 
             project_name="BholeyKaBhakt"; patch_repo="BholeyKaBhakt/android-patches-xtra"
-            app_menu=("speedtest" "Speedtest (Rec: 7.0.4)" ON "stellarium" "Stellarium (Rec: 1.16.3)" OFF "proto" "PROTO (Rec: 1.49.0)" OFF)
-            pkg_map["speedtest"]="org.zwanoo.android.speedtest"; name_map["speedtest"]="Speedtest"; keyword_map["speedtest"]="speedtest"
-            pkg_map["stellarium"]="com.noctuasoftware.stellarium_free"; name_map["stellarium"]="Stellarium"; keyword_map["stellarium"]="stellarium"
-            pkg_map["proto"]="com.proto.circuitsimulator"; name_map["proto"]="PROTO"; keyword_map["proto"]="proto"
+            app_menu=(
+                "speedtest" "Speedtest (Rec: ${cfg_speedtest_stable[0]})" ON 
+                "stellarium" "Stellarium (Rec: ${cfg_stellarium_stable[0]})" OFF 
+                "proto" "PROTO (Rec: ${cfg_proto_stable[0]})" OFF
+                "vpnify" "vpnify (Rec: ${cfg_vpnify_stable[0]})" OFF
+                "backdrops" "Backdrops (Rec: ${cfg_backdrops_stable[0]})" OFF
+                "solid" "Solid Explorer (Rec: ${cfg_solidexplorer_stable[0]})" OFF
+            )
+            pkg_map["speedtest"]="org.zwanoo.android.speedtest"; name_map["speedtest"]="Speedtest"; keyword_map["speedtest"]="speedtest"; array_map["speedtest"]="cfg_speedtest_stable"
+            pkg_map["stellarium"]="com.noctuasoftware.stellarium_free"; name_map["stellarium"]="Stellarium"; keyword_map["stellarium"]="stellarium"; array_map["stellarium"]="cfg_stellarium_stable"
+            pkg_map["proto"]="com.proto.circuitsimulator"; name_map["proto"]="PROTO"; keyword_map["proto"]="proto\|circuit"; array_map["proto"]="cfg_proto_stable"
+            pkg_map["vpnify"]="com.vpn.free.hotspot.secure.vpnify"; name_map["vpnify"]="vpnify"; keyword_map["vpnify"]="vpnify"; array_map["vpnify"]="cfg_vpnify_stable"
+            pkg_map["backdrops"]="com.backdrops.wallpapers"; name_map["backdrops"]="Backdrops"; keyword_map["backdrops"]="backdrops"; array_map["backdrops"]="cfg_backdrops_stable"
+            pkg_map["solid"]="pl.solidexplorer2"; name_map["solid"]="Solid_Explorer"; keyword_map["solid"]="solid\|explorer"; array_map["solid"]="cfg_solidexplorer_stable"
             ;;
         6) 
             project_name="browzomje"; patch_repo="browzomje/browzomje-patches"
-            app_menu=("pinterest" "Pinterest (Rec: 14.24.0)" ON)
-            pkg_map["pinterest"]="com.pinterest"; name_map["pinterest"]="Pinterest"; keyword_map["pinterest"]="pinterest"
+            app_menu=("pinterest" "Pinterest (Rec: ${cfg_pinterest_stable[0]})" ON)
+            pkg_map["pinterest"]="com.pinterest"; name_map["pinterest"]="Pinterest"; keyword_map["pinterest"]="pinterest"; array_map["pinterest"]="cfg_pinterest_stable"
             ;;
     esac
 
@@ -333,30 +385,64 @@ invoke_patching() {
         extraPatchFile="$FETCHED_FILE"
     fi
 
+    # [DEBUG] Dynamic Array Validation & Mismatch Gating
     local valid_targets=()
     for tag in $appChoices; do
         local a_name="${name_map[$tag]}"
         local k_word="${keyword_map[$tag]}"
+        local arr_name="${array_map[$tag]}"
+        
+        # Bash 4.3+ Nameref feature to read the specific config array for this app
+        declare -n stable_arr="$arr_name"
+        
         local found_apk=""
+        local target_version=""
+        local status_tag="[MISMATCH]"
+        local prompt_again=true
 
-        while true; do
-            # [DEBUG] Escaping parenthesis \( \) is strictly required for grouping OR conditionals 
-            # within a standard find -iregex string to prevent syntax failures.
+        while [ "$prompt_again" = true ]; do
             found_apk=$(find "$workspace/Input" -maxdepth 1 -type f -iregex ".*\(${k_word}\).*\.\(apk\|apkm\|xapk\|apks\)$" | head -n 1)
             if [ -n "$found_apk" ]; then
-                break
-            fi
-            
-            calc_size
-            if whiptail --title "APK Not Found" --yesno "Missing APK file for $a_name!\n\nPlease download the APK and place it inside:\nDownloads/Chihafuyu/$project_name/Input/\n\nSelect 'Yes' to check the folder again, or 'No' to skip this app." $WT_H $WT_W; then
-                continue
+                # PCRE regex to extract semantic version or datecode
+                target_version=$(echo "$(basename "$found_apk")" | grep -oP '(\d+\.\d+(?:\.\d+)*(?:-(?:release|alpha|beta|rc|ripped|release-ripped)(?:\.\d+)+)?|\d+(?:-\d+)+(?:-(?:release|alpha|beta|rc|ripped|release-ripped)(?:\.\d+)+)?|\b\d{7,}\b)' | head -n 1)
+                
+                status_tag="[MISMATCH]"
+                for rec_v in "${stable_arr[@]}"; do
+                    if [[ "$rec_v" == "Any" || "$rec_v" == "$target_version" ]]; then
+                        if [[ "$rec_v" == "Any" ]]; then
+                            status_tag="[SUPPORTED]"
+                        else
+                            status_tag="[RECOMMENDED]"
+                        fi
+                        break
+                    fi
+                done
+                
+                if [[ "$status_tag" == "[MISMATCH]" ]]; then
+                    calc_size
+                    local rec_list="${stable_arr[*]}"
+                    if whiptail --title "Version Mismatch!" --yesno "Warning: Found $(basename "$found_apk")\n\nDetected Version: $target_version\nRecommended Versions: $rec_list\n\nPatching an unsupported version may cause the app to crash.\nDo you want to FORCE PATCH this version anyway?" $WT_H $WT_W; then
+                        prompt_again=false # User chose to force patch
+                    else
+                        found_apk=""
+                        prompt_again=false # Prevent infinite loop if they say No
+                    fi
+                else
+                    prompt_again=false # Supported/Recommended, proceed
+                fi
             else
-                break
+                calc_size
+                if whiptail --title "APK Not Found / Skipped" --yesno "Missing valid APK file for $a_name!\n\nPlease download the APK and place it inside:\nDownloads/Chihafuyu/$project_name/Input/\n\nSelect 'Yes' to check the folder again, or 'No' to skip this app." $WT_H $WT_W; then
+                    continue
+                else
+                    break
+                fi
             fi
         done
 
         if [ -n "$found_apk" ]; then
-            valid_targets+=("$tag|$found_apk")
+            # We bundle the tag, apk path, and status into a single delimiter string
+            valid_targets+=("$tag|$found_apk|$status_tag")
         fi
     done
 
@@ -472,16 +558,27 @@ invoke_patching() {
     > "$temp_log"
 
     for target in "${valid_targets[@]}"; do
+        # Extract variables from bundled string
         local t_tag="${target%%|*}"
-        local t_apk="${target#*|}"
+        local tmp="${target#*|}"
+        local t_apk="${tmp%|*}"
+        local t_status="${target##*|}"
+        
         local t_name="${name_map[$t_tag]}"
         local jsonFile="$workspace/${t_name}-options.json"
         
         apkName=$(basename "$t_apk")
         
-        # Dual-stream logging to prevent ANSI escape codes in the log file
-        echo -e "\n\e[35m>>> PATCHING: $apkName <<<\e[0m"
-        echo ">>> PATCHING: $apkName <<<" >> "$temp_log"
+        # Set colors for the status badge
+        local c_status=""
+        if [ "$t_status" == "[MISMATCH]" ]; then
+            c_status="\e[33m$t_status\e[0m"
+        else
+            c_status="\e[32m$t_status\e[0m"
+        fi
+        
+        echo -e "\n\e[35m>>> PATCHING: $apkName $c_status <<<\e[0m"
+        echo ">>> PATCHING: $apkName $t_status <<<" >> "$temp_log"
         
         outputApkAbs="$workspace/Output/Patched_${apkName%.*}.apk"
         
@@ -502,8 +599,6 @@ invoke_patching() {
         
         java "${baseArgs[@]}" 2>&1 | tee -a "$temp_log"
         
-        # [DEBUG] Using PIPESTATUS[0] because piping output to 'tee' masks the original Java process exit code.
-        # This is functionally equivalent to checking $LASTEXITCODE in PowerShell.
         if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo -e "\e[31m[!] Patching FAILED\e[0m\n"
             echo "[!] Patching FAILED" >> "$temp_log"
