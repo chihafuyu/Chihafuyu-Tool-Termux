@@ -30,6 +30,32 @@ if [[ "${1:-}" == "--update" || "${1:-}" == "--upgrade" ]]; then
 fi
 
 # ==============================================================================
+# WORKSPACE CLEANUP MECHANISM (--clean)
+# ==============================================================================
+if [[ "${1:-}" == "--clean" ]]; then
+    BASE_DIR="$HOME/storage/downloads/Chihafuyu"
+    if [ -d "$BASE_DIR" ]; then
+        echo -e "\e[33m[!] WARNING: This will delete ALL files in your workspace, including:\e[0m"
+        echo -e "    - Downloaded CLI (.jar) and Patches (.mpp)"
+        echo -e "    - All unpatched APKs in Input folders"
+        echo -e "    - All patched APKs in Output folders"
+        echo -e "    - Custom keystore and Options JSONs"
+        echo -e "\nTarget Directory: $BASE_DIR"
+        read -p "Are you absolutely sure you want to proceed? (Y/N): " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "\n\e[36m[*] Wiping workspace...\e[0m"
+            rm -rf "$BASE_DIR"
+            echo -e "\e[32m[✓] Workspace completely cleaned! Storage space recovered.\e[0m"
+        else
+            echo -e "\n\e[90m[i] Operation aborted.\e[0m"
+        fi
+    else
+        echo -e "\e[90m[i] Workspace does not exist or is already clean: $BASE_DIR\e[0m"
+    fi
+    exit 0
+fi
+
+# ==============================================================================
 # RECOMMENDED APP VERSIONS ARRAYS
 # ==============================================================================
 cfg_youtube_stable=("20.51.39" "20.47.62" "20.31.42" "20.21.37")
