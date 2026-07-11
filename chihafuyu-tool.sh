@@ -32,16 +32,11 @@ fi
 # ==============================================================================
 # RECOMMENDED APP VERSIONS ARRAYS
 # ==============================================================================
-# Morphe
 cfg_youtube_stable=("20.51.39" "20.47.62" "20.31.42" "20.21.37")
 cfg_youtube_music_stable=("9.15.51" "8.51.51" "7.29.52")
 cfg_reddit_stable=("2026.14.0" "2026.04.0")
-
-# Piko
 cfg_x_stable=("12.2.0-release.0" "12.0.0-release.0" "11.99.0-release-ripped.1" "11.81.0-release.0" "11.69.0-release.0")
 cfg_ig_stable=("435.0.0.37.76")
-
-# hoo-dles
 cfg_adguard_stable=("4.12.81")
 cfg_ibispaint_stable=("14.0.4")
 cfg_wps_stable=("18.24")
@@ -53,21 +48,16 @@ cfg_mimo_stable=("9.11")
 cfg_windy_stable=("50.1.1")
 cfg_xrecorder_stable=("2.5.1.1")
 cfg_xodo_stable=("10.15.0")
-
-# De-ReVanced
 cfg_photos_stable=("Any")
 cfg_rar_stable=("Any")
-
-# BholeyKaBhakt
 cfg_speedtest_stable=("7.0.4")
 cfg_stellarium_stable=("1.16.3" "1.16.2")
 cfg_proto_stable=("1.49.0" "1.48.0")
 cfg_vpnify_stable=("2.2.9")
 cfg_backdrops_stable=("6.1.2")
 cfg_solidexplorer_stable=("3.4.10")
-
-# browzomje
 cfg_pinterest_stable=("14.23.0" "14.24.0")
+cfg_chess_stable=("4.10.0" "4.10.0-googleplay" "4.9.49" "4.9.49-googleplay")
 
 # ==============================================================================
 # SYSTEM PREREQUISITES
@@ -91,11 +81,11 @@ rm -f "$PREFIX/var/lib/apt/lists/lock" > /dev/null 2>&1
 dpkg --configure -a > /dev/null 2>&1
 apt-get --fix-broken install -y -q > /dev/null 2>&1
 
-if ! command -v jq &> /dev/null || ! command -v curl &> /dev/null || ! command -v whiptail &> /dev/null || ! command -v tput &> /dev/null; then 
+if ! command -v jq &> /dev/null || ! command -v curl &> /dev/null || ! command -v whiptail &> /dev/null || ! command -v tput &> /dev/null || ! command -v unzip &> /dev/null; then 
     echo -e "\e[90m  [i] Updating and installing core packages...\e[0m"
     apt-get update -y -q > /dev/null 2>&1
     apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" < /dev/null
-    apt-get install -y jq curl whiptail ncurses-utils < /dev/null
+    apt-get install -y jq curl whiptail ncurses-utils unzip < /dev/null
     echo -e "\e[32m  [✓] Essential packages installed.\e[0m"
 fi 
 
@@ -122,7 +112,7 @@ EOF
 fi
 
 # ==============================================================================
-# UI DIMENSION CALCULATOR
+# UI DIMENSION CALCULATOR & HELPER FUNCTIONS
 # ==============================================================================
 calc_size() {
     shopt -s checkwinsize
@@ -265,38 +255,15 @@ fetch_gitlab_artifact() {
     fi
 }
 
-invoke_patching() {
-    calc_size
-    local cliTrack=$(whiptail --title "CLI Environment" --menu "Select Morphe CLI Track:" $WT_H $WT_W $WT_M \
-        "stable" "Recommended Release" \
-        "dev" "Experimental Pre-release" 3>&1 1>&2 2>&3)
-    if [ -z "$cliTrack" ]; then return; fi
+load_ecosystem_data() {
+    local choice=$1
+    app_menu=()
+    pkg_map=()
+    name_map=()
+    keyword_map=()
+    array_map=()
 
-    local cli_repo="MorpheApp/morphe-cli"
-    fetch_github_artifact "$cli_repo" "$cliTrack" "$BASE_DIR/CLI" ".jar" || return
-    local cliJar="$FETCHED_FILE"
-
-    calc_size
-    local patchesTrack=$(whiptail --title "Patches Environment" --menu "Select Ecosystem Patches Track:" $WT_H $WT_W $WT_M \
-        "stable" "Recommended Release" \
-        "dev" "Experimental Pre-release" 3>&1 1>&2 2>&3)
-    if [ -z "$patchesTrack" ]; then return; fi
-
-    calc_size
-    local ecoChoice=$(whiptail --title "Target Ecosystem" --menu "Select Ecosystem(s):" $WT_H $WT_W $WT_M \
-        "1" "Morphe (YouTube, YT Music, Reddit)" \
-        "2" "Piko (X/Twitter, Instagram)" \
-        "3" "hoo-dles (AdGuard, IbisPaint X, WPS, etc.)" \
-        "4" "De-ReVanced (Google Photos, RAR)" \
-        "5" "BholeyKaBhakt (Speedtest, Stellarium, etc.)" \
-        "6" "browzomje (Pinterest)" 3>&1 1>&2 2>&3)
-    if [ -z "$ecoChoice" ]; then return; fi
-
-    declare -A pkg_map name_map keyword_map array_map
-    local app_menu=()
-
-    # Dynamic Array Mapping
-    case "$ecoChoice" in
+    case "$choice" in
         1) 
             project_name="Morphe"; patch_repo="MorpheApp/morphe-patches"
             app_menu=("youtube" "YouTube (Rec: ${cfg_youtube_stable[0]})" ON "ytmusic" "YT Music (Rec: ${cfg_youtube_music_stable[0]})" OFF "reddit" "Reddit (Rec: ${cfg_reddit_stable[0]})" OFF)
@@ -365,15 +332,189 @@ invoke_patching() {
             app_menu=("pinterest" "Pinterest (Rec: ${cfg_pinterest_stable[0]})" ON)
             pkg_map["pinterest"]="com.pinterest"; name_map["pinterest"]="Pinterest"; keyword_map["pinterest"]="pinterest"; array_map["pinterest"]="cfg_pinterest_stable"
             ;;
+        7) 
+            project_name="PathxmOp"; patch_repo="PathxmOp/patches"
+            app_menu=("chess" "Chess.com (Rec: ${cfg_chess_stable[0]})" ON)
+            pkg_map["chess"]="com.chess"; name_map["chess"]="Chess"; keyword_map["chess"]="chess\|^\d\{5,8\}_"; array_map["chess"]="cfg_chess_stable"
+            ;;
     esac
+}
 
+# ==============================================================================
+# WORKFLOW: UTILITIES (Ported from PowerShell)
+# ==============================================================================
+invoke_utility() {
+    calc_size
+    local utilChoice=$(whiptail --title "UTILITY MENU" --menu "Select Utility Action:" $WT_H $WT_W $WT_M \
+        "1" "Generate Options only" \
+        "2" "Generate list-patches only" \
+        "3" "Generate Custom Keystore (PKCS12)" \
+        "4" "Clear Morphe Cache" \
+        "B" "Back to Main Menu" 3>&1 1>&2 2>&3)
+        
+    if [[ -z "$utilChoice" || "$utilChoice" == "B" || "$utilChoice" == "b" ]]; then return; fi
+    
+    # 3. Keystore Generation (No CLI needed)
+    if [ "$utilChoice" == "3" ]; then
+        calc_size
+        local ksName=$(whiptail --title "Custom Keystore" --inputbox "Enter filename (e.g., my-key.keystore):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+        if [ -z "$ksName" ]; then return; fi
+        
+        # Append extension if missing
+        if [[ "$ksName" != *.* ]]; then ksName="${ksName}.keystore"; fi
+        local ksPath="$BASE_DIR/$ksName"
+        
+        if [ -f "$ksPath" ]; then
+            calc_size
+            whiptail --title "Error" --msgbox "File '$ksName' already exists in the Downloads folder!" $WT_H $WT_W
+            return
+        fi
+
+        calc_size
+        local ksAlias=$(whiptail --title "Custom Keystore" --inputbox "Enter Alias (e.g., Morphe):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+        calc_size
+        local ksPass=$(whiptail --title "Custom Keystore" --passwordbox "Enter Password (min 6 chars):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+        calc_size
+        local ksSigner=$(whiptail --title "Custom Keystore" --inputbox "Enter Signer Name (Max 8 chars, no spaces):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+        calc_size
+        local ksOU=$(whiptail --title "Custom Keystore" --inputbox "Enter Organizational Unit (e.g., Modder):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+        calc_size
+        local ksOrg=$(whiptail --title "Custom Keystore" --inputbox "Enter Organization (e.g., MyCompany):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+        calc_size
+        local ksCountry=$(whiptail --title "Custom Keystore" --inputbox "Enter 2-letter Country Code (e.g., ID, US):" $WT_H $WT_W 3>&1 1>&2 2>&3)
+
+        clear
+        echo -e "\e[36m[*] Generating PKCS12 Keystore via Java keytool...\e[0m"
+        keytool -genkeypair -v -keystore "$ksPath" -alias "$ksAlias" -keyalg RSA -keysize 4096 -validity 10000 -storepass "$ksPass" -keypass "$ksPass" -dname "CN=$ksSigner, OU=$ksOU, O=$ksOrg, C=${ksCountry^^}" -storetype PKCS12 2>&1
+        
+        if [ $? -eq 0 ] && [ -f "$ksPath" ]; then
+            echo -e "\e[32m[✓] Keystore generated successfully at: $ksPath\e[0m"
+        else
+            echo -e "\e[31m[!] Failed to generate keystore.\e[0m"
+        fi
+        read -p "Press Enter to continue..."
+        return
+    fi
+
+    # Fetch CLI for 1, 2, 4
+    if [[ "$utilChoice" =~ ^[124]$ ]]; then
+        calc_size
+        local cliTrack=$(whiptail --title "CLI Environment" --menu "Select Morphe CLI Track for Utility:" $WT_H $WT_W $WT_M "stable" "Recommended Release" "dev" "Experimental Pre-release" 3>&1 1>&2 2>&3)
+        if [ -z "$cliTrack" ]; then return; fi
+        local cli_repo="MorpheApp/morphe-cli"
+        fetch_github_artifact "$cli_repo" "$cliTrack" "$BASE_DIR/CLI" ".jar" || return
+        local cliJar="$FETCHED_FILE"
+    fi
+
+    # 4. Clear Cache
+    if [ "$utilChoice" == "4" ]; then
+        clear
+        echo -e "\e[36m[*] Clearing Morphe temporary files and cache...\e[0m"
+        java -jar "$cliJar" utility clear-cache --info
+        echo -e "\e[32m[✓] Cache cleared successfully.\e[0m"
+        read -p "Press Enter to continue..."
+        return
+    fi
+
+    # 1 & 2. Options and List-Patches Generator
+    if [[ "$utilChoice" == "1" || "$utilChoice" == "2" ]]; then
+        calc_size
+        local patchesTrack=$(whiptail --title "Patches Environment" --menu "Select Ecosystem Patches Track:" $WT_H $WT_W $WT_M "stable" "Recommended Release" "dev" "Experimental Pre-release" 3>&1 1>&2 2>&3)
+        if [ -z "$patchesTrack" ]; then return; fi
+
+        calc_size
+        local ecoChoice=$(whiptail --title "Target Ecosystem" --menu "Select Ecosystem(s):" $WT_H $WT_W $WT_M "1" "Morphe" "2" "Piko" "3" "hoo-dles" "4" "De-ReVanced" "5" "BholeyKaBhakt" "6" "browzomje" "7" "PathxmOp" 3>&1 1>&2 2>&3)
+        if [ -z "$ecoChoice" ]; then return; fi
+
+        load_ecosystem_data "$ecoChoice"
+        workspace="$BASE_DIR/$project_name"
+        mkdir -p "$workspace/Input" "$workspace/Output"
+
+        fetch_github_artifact "$patch_repo" "$patchesTrack" "$workspace" ".mpp" || return
+        local patchesFile="$FETCHED_FILE"
+        
+        local extraPatchFile=""
+        if [ "$ecoChoice" -eq 2 ]; then
+            fetch_gitlab_artifact "inotia00%2Fx-shim" "$workspace" ".mpp" || return
+            extraPatchFile="$FETCHED_FILE"
+        fi
+
+        if [ "$utilChoice" == "1" ]; then
+            clear
+            echo -e "\e[36m[*] Generating Options JSON for $project_name...\e[0m"
+            for key in "${!pkg_map[@]}"; do
+                local t_pkg="${pkg_map[$key]}"
+                local t_name="${name_map[$key]}"
+                local jsonFile="$workspace/${t_name}-options.json"
+                
+                echo -e "  -> Generating for $t_pkg"
+                local optArgs=("-jar" "$cliJar" "options-create" "--patches" "$patchesFile")
+                if [ -n "$extraPatchFile" ]; then optArgs+=("--patches" "$extraPatchFile"); fi
+                optArgs+=("--out" "$jsonFile" "--filter-package-name" "$t_pkg")
+                java "${optArgs[@]}" >/dev/null 2>&1
+            done
+            echo -e "\e[32m[✓] Saved options to Downloads/Chihafuyu/$project_name/\e[0m"
+            read -p "Press Enter to continue..."
+        elif [ "$utilChoice" == "2" ]; then
+            clear
+            local patchesListFile="$workspace/list-patches-$patchesTrack.txt"
+            echo -e "\e[36m[*] Generating list-patches reference for $project_name...\e[0m"
+            
+            local incExp=0
+            calc_size
+            if whiptail --title "Include Experimental" --yesno "Include experimental app versions in the output? (--include-experimental)" $WT_H $WT_W; then
+                incExp=1
+            fi
+            
+            local listArgs=("-jar" "$cliJar" "list-patches" "--with-packages" "--with-versions" "--with-options" "--out" "$patchesListFile" "--patches" "$patchesFile")
+            if [ "$incExp" -eq 1 ]; then listArgs+=("--include-experimental"); fi
+            if [ -n "$extraPatchFile" ]; then listArgs+=("--patches" "$extraPatchFile"); fi
+            
+            java "${listArgs[@]}" >/dev/null 2>&1
+            echo -e "\e[32m[✓] Reference file created at: $patchesListFile\e[0m"
+            read -p "Press Enter to continue..."
+        fi
+    fi
+}
+
+# ==============================================================================
+# WORKFLOW: PATCHING (Includes Global Advanced Preferences)
+# ==============================================================================
+invoke_patching() {
+    calc_size
+    local cliTrack=$(whiptail --title "CLI Environment" --menu "Select Morphe CLI Track:" $WT_H $WT_W $WT_M \
+        "stable" "Recommended Release" \
+        "dev" "Experimental Pre-release" 3>&1 1>&2 2>&3)
+    if [ -z "$cliTrack" ]; then return; fi
+
+    local cli_repo="MorpheApp/morphe-cli"
+    fetch_github_artifact "$cli_repo" "$cliTrack" "$BASE_DIR/CLI" ".jar" || return
+    local cliJar="$FETCHED_FILE"
+
+    calc_size
+    local patchesTrack=$(whiptail --title "Patches Environment" --menu "Select Ecosystem Patches Track:" $WT_H $WT_W $WT_M \
+        "stable" "Recommended Release" \
+        "dev" "Experimental Pre-release" 3>&1 1>&2 2>&3)
+    if [ -z "$patchesTrack" ]; then return; fi
+
+    calc_size
+    local ecoChoice=$(whiptail --title "Target Ecosystem" --menu "Select Ecosystem(s):" $WT_H $WT_W $WT_M \
+        "1" "Morphe (YouTube, YT Music, Reddit)" \
+        "2" "Piko (X/Twitter, Instagram)" \
+        "3" "hoo-dles (AdGuard, IbisPaint X, WPS, etc.)" \
+        "4" "De-ReVanced (Google Photos, RAR)" \
+        "5" "BholeyKaBhakt (Speedtest, Stellarium, etc.)" \
+        "6" "browzomje (Pinterest)" \
+        "7" "PathxmOp (Chess.com)" 3>&1 1>&2 2>&3)
+    if [ -z "$ecoChoice" ]; then return; fi
+
+    load_ecosystem_data "$ecoChoice"
     workspace="$BASE_DIR/$project_name"
     mkdir -p "$workspace/Input" "$workspace/Output"
 
     calc_size
     local appChoices=$(whiptail --title "Target Applications" --checklist "Select the applications you want to patch (Use SPACE to check/uncheck):" $WT_H $WT_W $WT_M "${app_menu[@]}" 3>&1 1>&2 2>&3)
     if [ -z "$appChoices" ]; then return; fi
-    
     appChoices=$(echo "$appChoices" | tr -d '"')
 
     fetch_github_artifact "$patch_repo" "$patchesTrack" "$workspace" ".mpp" || return
@@ -392,7 +533,6 @@ invoke_patching() {
         local k_word="${keyword_map[$tag]}"
         local arr_name="${array_map[$tag]}"
         
-        # Bash 4.3+ Nameref feature to read the specific config array for this app
         declare -n stable_arr="$arr_name"
         
         local found_apk=""
@@ -402,9 +542,21 @@ invoke_patching() {
 
         while [ "$prompt_again" = true ]; do
             found_apk=$(find "$workspace/Input" -maxdepth 1 -type f -iregex ".*\(${k_word}\).*\.\(apk\|apkm\|xapk\|apks\)$" | head -n 1)
+            
+            # [DEBUG] ZIP validation check native to bash using unzip. Mimics Test-IsUniversalApk in PS1.
+            if [ -n "$found_apk" ] && [[ "$found_apk" == *.apk ]]; then
+                if ! unzip -l "$found_apk" 2>/dev/null | grep -q "classes.dex" || ! unzip -l "$found_apk" 2>/dev/null | grep -q "AndroidManifest.xml"; then
+                    calc_size
+                    if whiptail --title "Corrupt/Split APK" --yesno "WARNING: The file $(basename "$found_apk") appears to be missing core files (classes.dex / AndroidManifest.xml).\n\nAre you sure you want to force continue anyway?" $WT_H $WT_W; then
+                        :
+                    else
+                        found_apk=""
+                    fi
+                fi
+            fi
+
             if [ -n "$found_apk" ]; then
-                # PCRE regex to extract semantic version or datecode
-                target_version=$(echo "$(basename "$found_apk")" | grep -oP '(\d+\.\d+(?:\.\d+)*(?:-(?:release|alpha|beta|rc|ripped|release-ripped)(?:\.\d+)+)?|\d+(?:-\d+)+(?:-(?:release|alpha|beta|rc|ripped|release-ripped)(?:\.\d+)+)?|\b\d{7,}\b)' | head -n 1)
+                target_version=$(echo "$(basename "$found_apk")" | grep -oP '(\d+\.\d+(?:\.\d+)*(?:-(?:release|alpha|beta|rc|ripped|release-ripped)(?:\.\d+)+)?|\d+(?:[-_]\d+)+(?:-(?:release|alpha|beta|rc|ripped|release-ripped)(?:\.\d+)+)?|\b\d{7,}\b)' | sed 's/[-_]/./g' | head -n 1)
                 
                 status_tag="[MISMATCH]"
                 for rec_v in "${stable_arr[@]}"; do
@@ -422,13 +574,13 @@ invoke_patching() {
                     calc_size
                     local rec_list="${stable_arr[*]}"
                     if whiptail --title "Version Mismatch!" --yesno "Warning: Found $(basename "$found_apk")\n\nDetected Version: $target_version\nRecommended Versions: $rec_list\n\nPatching an unsupported version may cause the app to crash.\nDo you want to FORCE PATCH this version anyway?" $WT_H $WT_W; then
-                        prompt_again=false # User chose to force patch
+                        prompt_again=false
                     else
                         found_apk=""
-                        prompt_again=false # Prevent infinite loop if they say No
+                        prompt_again=false
                     fi
                 else
-                    prompt_again=false # Supported/Recommended, proceed
+                    prompt_again=false
                 fi
             else
                 calc_size
@@ -441,7 +593,6 @@ invoke_patching() {
         done
 
         if [ -n "$found_apk" ]; then
-            # We bundle the tag, apk path, and status into a single delimiter string
             valid_targets+=("$tag|$found_apk|$status_tag")
         fi
     done
@@ -452,6 +603,7 @@ invoke_patching() {
         return
     fi
 
+    # [DEBUG] Ported Global Execution Preferences
     calc_size
     local archChoice=$(whiptail --title "Target Architecture" --menu "Select architecture for library stripping (--striplibs):" $WT_H $WT_W $WT_M \
         "1" "arm64-v8a (Modern 64-bit devices)" \
@@ -459,16 +611,27 @@ invoke_patching() {
         "3" "x86_64 (Emulators/PC)" \
         "4" "x86 (Old Emulators)" \
         "5" "Universal (Do not strip libraries)" 3>&1 1>&2 2>&3)
-    
     if [ -z "$archChoice" ]; then return; fi
     local arch_flag=""
     case "$archChoice" in
-        1) arch_flag="arm64-v8a" ;;
-        2) arch_flag="armeabi-v7a" ;;
-        3) arch_flag="x86_64" ;;
-        4) arch_flag="x86" ;;
-        5) arch_flag="" ;;
+        1) arch_flag="arm64-v8a" ;; 2) arch_flag="armeabi-v7a" ;; 3) arch_flag="x86_64" ;; 4) arch_flag="x86" ;; 5) arch_flag="" ;;
     esac
+
+    local bytecodeMode=""
+    calc_size
+    if whiptail --title "Bytecode Mode" --yesno "Configure custom bytecode mode? (--bytecode-mode)" $WT_H $WT_W; then
+        calc_size
+        local bcChoice=$(whiptail --title "Bytecode Mode" --menu "Select Mode:" $WT_H $WT_W $WT_M "1" "FULL" "2" "STRIP_FAST" "3" "STRIP_SAFE" 3>&1 1>&2 2>&3)
+        case "$bcChoice" in
+            1) bytecodeMode="FULL" ;; 2) bytecodeMode="STRIP_FAST" ;; 3) bytecodeMode="STRIP_SAFE" ;;
+        esac
+    fi
+
+    local continueOnError=0
+    calc_size
+    if whiptail --title "Error Handling" --yesno "Skip failed patches and continue to the next APK? (--continue-on-error)" $WT_H $WT_W; then
+        continueOnError=1
+    fi
 
     calc_size
     whiptail --title "Generating Options" --infobox "Generating options.json for selected apps..." $WT_H $WT_W
@@ -558,7 +721,6 @@ invoke_patching() {
     > "$temp_log"
 
     for target in "${valid_targets[@]}"; do
-        # Extract variables from bundled string
         local t_tag="${target%%|*}"
         local tmp="${target#*|}"
         local t_apk="${tmp%|*}"
@@ -566,10 +728,10 @@ invoke_patching() {
         
         local t_name="${name_map[$t_tag]}"
         local jsonFile="$workspace/${t_name}-options.json"
+        local tempResultFile="$workspace/Output/temp_result_$t_name.json"
         
         apkName=$(basename "$t_apk")
         
-        # Set colors for the status badge
         local c_status=""
         if [ "$t_status" == "[MISMATCH]" ]; then
             c_status="\e[33m$t_status\e[0m"
@@ -585,9 +747,11 @@ invoke_patching() {
         baseArgs=("-Xmx$heapSize" "-jar" "$cliJar" "patch" "--patches" "$patchesFile")
         if [ -n "$extraPatchFile" ]; then baseArgs+=("--patches" "$extraPatchFile"); fi
         
-        baseArgs+=("--options-file" "$jsonFile" "--out" "$outputApkAbs")
+        baseArgs+=("--options-file" "$jsonFile" "--out" "$outputApkAbs" "--result-file" "$tempResultFile")
         
         if [ -n "$arch_flag" ]; then baseArgs+=("--striplibs" "$arch_flag"); fi
+        if [ -n "$bytecodeMode" ]; then baseArgs+=("--bytecode-mode" "$bytecodeMode"); fi
+        if [ "$continueOnError" -eq 1 ]; then baseArgs+=("--continue-on-error"); fi
 
         if [ "$disableSigning" -eq 1 ]; then
             baseArgs+=("--unsigned")
@@ -602,6 +766,7 @@ invoke_patching() {
         if [ ${PIPESTATUS[0]} -ne 0 ]; then
             echo -e "\e[31m[!] Patching FAILED\e[0m\n"
             echo "[!] Patching FAILED" >> "$temp_log"
+            if [ "$continueOnError" -eq 0 ]; then break; fi
         else
             echo -e "\e[32m[✓] Patching SUCCEEDED -> Downloads/Chihafuyu/$project_name/Output/\e[0m\n"
             echo "[✓] Patching SUCCEEDED -> Downloads/Chihafuyu/$project_name/Output/" >> "$temp_log"
@@ -621,6 +786,29 @@ invoke_patching() {
         rm -f "$temp_log"
     fi
 
+    # [DEBUG] Ported Export Result JSONs logic
+    calc_size
+    if whiptail --title "Export Results" --yesno "Do you want to export the patching result JSONs? (--result-file)" $WT_H $WT_W; then
+        for target in "${valid_targets[@]}"; do
+            local t_tag="${target%%|*}"
+            local t_name="${name_map[$t_tag]}"
+            local tempResultFile="$workspace/Output/temp_result_$t_name.json"
+            
+            if [ -f "$tempResultFile" ]; then
+                local finalResultName="Result_${t_name}_$(date +%Y%m%d_%H%M%S).json"
+                mv "$tempResultFile" "$workspace/Output/$finalResultName"
+                echo -e "\e[90m[i] JSON result exported to $finalResultName\e[0m"
+            fi
+        done
+    else
+        # Cleanup temporary result files if export is declined
+        for target in "${valid_targets[@]}"; do
+            local t_tag="${target%%|*}"
+            local t_name="${name_map[$t_tag]}"
+            rm -f "$workspace/Output/temp_result_$t_name.json"
+        done
+    fi
+
     read -p "Press Enter to return to the Main Menu..."
 }
 
@@ -628,10 +816,12 @@ while true; do
     calc_size
     mainChoice=$(whiptail --title "CHIHAFUYU TOOL" --menu "What do you want to do?" $WT_H $WT_W $WT_M \
         "1" "Patch apps" \
+        "2" "Use utilities" \
         "X" "Close" 3>&1 1>&2 2>&3)
     
     case "${mainChoice,,}" in
         1) invoke_patching ;;
+        2) invoke_utility ;;
         x|"")
             clear
             echo -e "\e[36mSession ended. Have a great day!\e[0m"
