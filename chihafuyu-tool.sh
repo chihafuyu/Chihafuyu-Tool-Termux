@@ -185,14 +185,26 @@ fetch_github_artifact() {
         download_url=$(echo "$latest_response" | jq -r ".assets[] | select(.name | endswith(\"$file_ext\")) | .browser_download_url" | head -n 1)
         file_name=$(echo "$latest_response" | jq -r ".assets[] | select(.name | endswith(\"$file_ext\")) | .name" | head -n 1)
     else
-        download_url=$(echo "$api_response" | jq -r ".[0].assets[] | select(.name | endswith(\"$file_ext\")) | .browser_download_url" | head -n 1)
-        file_name=$(echo "$api_response" | jq -r ".[0].assets[] | select(.name | endswith(\"$file_ext\")) | .name" | head -n 1)
+        # [DEBUG] STRICT DEV CHECK: Only fetch assets from releases explicitly tagged as 'prerelease'
+        download_url=$(echo "$api_response" | jq -r ".[] | select(.prerelease == true) | .assets[] | select(.name | endswith(\"$file_ext\")) | .browser_download_url" | head -n 1)
+        file_name=$(echo "$api_response" | jq -r ".[] | select(.prerelease == true) | .assets[] | select(.name | endswith(\"$file_ext\")) | .name" | head -n 1)
     fi
 
+    # [DEBUG] Fallback Interception: If a pre-release is missing or lacks the asset, prompt the user to gracefully fallback to stable.
     if [ -z "$download_url" ] || [ "$download_url" == "null" ]; then
-        calc_size
-        whiptail --title "File Not Found" --msgbox "Failed to find '$file_ext' in the releases of:\n$repo ($track)." $WT_H $WT_W
-        return 1
+        if [ "$track" == "dev" ]; then
+            calc_size
+            if whiptail --title "Pre-release Not Found" --yesno "No experimental pre-release (dev) file '$file_ext' was found for:\n$repo\n\nWould you like to fallback to the STABLE release instead?" $WT_H $WT_W; then
+                fetch_github_artifact "$repo" "stable" "$target_dir" "$file_ext"
+                return $?
+            else
+                return 1
+            fi
+        else
+            calc_size
+            whiptail --title "File Not Found" --msgbox "Failed to find '$file_ext' in the releases of:\n$repo ($track)." $WT_H $WT_W
+            return 1
+        fi
     fi
 
     local target_file="$target_dir/$file_name"
